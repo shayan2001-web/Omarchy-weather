@@ -1,0 +1,17 @@
+#custom-weather {
+  padding: 0 10px;
+  color: #c9f47a;
+}
+
+#custom-weather.unavailable {
+  color: #819096;
+}
+
+#custom-weather.rain,
+#custom-weather.snow {
+  color: #84c7ec;
+}
+
+#custom-weather.storm {
+  color: #b5a8ef;
+}

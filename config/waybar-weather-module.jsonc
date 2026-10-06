@@ -1,0 +1,9 @@
+// Merge this module into your Waybar config's top-level object.
+// Also add "custom/weather" to your existing "modules-right" array.
+"custom/weather": {
+  "exec": "omarchy-weather-waybar",
+  "return-type": "json",
+  "interval": 900,
+  "on-click": "omarchy-weather",
+  "tooltip": true
+}

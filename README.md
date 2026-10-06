@@ -1,6 +1,6 @@
 # Omarchy Weather
 
-A calm, open-source weather dashboard built with Omarchy Linux in mind. It is a lightweight, installable web app with an optional user-level desktop launcher for Omarchy—no JavaScript framework, build step, or weather API key required.
+A calm, open-source weather dashboard built with Omarchy Linux in mind. It is a lightweight, installable web app with an optional user-level desktop launcher and Waybar module—no JavaScript framework, build step, or weather API key required.
 
 ## What it does
 
@@ -18,21 +18,35 @@ From a clone of this repository, run:
 ./scripts/install-omarchy.sh
 ```
 
-The installer copies the app into `~/.local/share/omarchy-weather`, adds an **Omarchy Weather** entry to your user application menu, and installs the app icons. No root access is needed. This is a browser-backed desktop launcher, not a native GTK binary. Python 3 is required for the small local static-file server; on Arch Linux it is provided by the `python` package.
+The installer copies the app into `~/.local/share/omarchy-weather`, adds an **Omarchy Weather** entry to your user application menu, installs the app icons and Waybar command, and creates a default location file at `~/.config/omarchy-weather/config.json` if one does not already exist. No root access is needed. The desktop launcher is browser-backed, not a native GTK binary. Python 3 is required for its small local static-file server; on Arch Linux it is provided by the `python` package.
 
-Launch it from Omarchy's application launcher, or run:
+Launch the app from Omarchy's application launcher, or run:
 
 ```sh
 ~/.local/bin/omarchy-weather
 ```
 
-The launcher uses a Chromium-family browser's app-window mode when available, and otherwise opens the app in your default browser. The local server binds only to `127.0.0.1`. It uses a stable port so your browser's saved location, unit, offline forecast, and service-worker cache persist between launches. If port `47653` is already occupied, close the other service or change `PORT` in `scripts/serve-omarchy-weather.py`, then rerun the installer.
+The launcher uses a Chromium-family browser's app-window mode when available, and otherwise opens the app in your default browser. The local server binds only to `127.0.0.1`. It uses a stable port so browser preferences, saved forecasts, and the service-worker cache persist between launches. If port `47653` is already occupied, close the other service or change `PORT` in `scripts/serve-omarchy-weather.py`, then rerun the installer.
 
-To remove the user-level installation:
+## Optional Waybar module
+
+The installer adds `~/.local/bin/omarchy-weather-waybar`. The module reads `~/.config/omarchy-weather/config.json`, fetches current conditions every 15 minutes when Waybar runs it, and opens the desktop app when clicked. It needs `curl` and `jq`; if either is missing, the module displays an explanatory unavailable state. Install them on Arch Linux if needed:
+
+```sh
+sudo pacman -S curl jq
+```
+
+Edit the location and unit in `~/.config/omarchy-weather/config.json` (`unit` can be `c` or `f`). The Waybar module uses this file independently of the city and unit selected inside the browser app.
+
+Merge `~/.config/omarchy-weather/waybar-weather-module.jsonc` into your existing Waybar config, and add `"custom/weather"` to its `modules-right` array. Append `~/.config/omarchy-weather/waybar-weather.css` to your Waybar stylesheet, then restart Waybar. If Waybar cannot find commands in `~/.local/bin`, use their full paths in the module configuration.
+
+## Uninstall
 
 ```sh
 ./scripts/uninstall-omarchy.sh
 ```
+
+The uninstall script removes the user-level app, menu entry, icons, and Waybar command. It deliberately leaves `~/.config/omarchy-weather/`—including your location settings and copied Waybar snippets—in place.
 
 ## Run locally for development
 
@@ -46,7 +60,7 @@ Then open <http://127.0.0.1:4173>. Opening `index.html` directly will not enable
 
 ## Weather data
 
-Forecast and city-search requests go directly from the browser to the public Open-Meteo APIs. No account or API key is used. An internet connection is needed for fresh weather and city searches; the last successfully loaded forecast is kept locally so it remains available offline.
+The dashboard and Waybar module request only the weather data they need from the public Open-Meteo APIs. No account or API key is used. An internet connection is needed for fresh weather and city searches; the dashboard keeps its last successfully loaded forecast locally so it remains available offline.
 
 ## License
 

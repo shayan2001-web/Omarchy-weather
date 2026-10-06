@@ -41,6 +41,7 @@ rm -rf -- "$APP_DIR"
 rm -f -- \
   "$BIN_DIR/omarchy-weather" \
   "$BIN_DIR/serve-omarchy-weather.py" \
+  "$BIN_DIR/omarchy-weather-waybar" \
   "$APPLICATIONS_DIR/omarchy-weather.desktop" \
   "$ICON_DIR/192x192/apps/omarchy-weather.png" \
   "$ICON_DIR/512x512/apps/omarchy-weather.png"
@@ -55,4 +56,5 @@ if command -v update-desktop-database >/dev/null 2>&1 && [[ -d "$APPLICATIONS_DI
   update-desktop-database "$APPLICATIONS_DIR" >/dev/null 2>&1 || true
 fi
 
-printf 'Removed the Omarchy Weather desktop launcher and installed app files.\n'
+printf 'Removed the Omarchy Weather desktop launcher, Waybar command, and installed app files.\n'
+printf 'Your Waybar and location settings in %s were left in place.\n' "${XDG_CONFIG_HOME:-$HOME/.config}/omarchy-weather"
