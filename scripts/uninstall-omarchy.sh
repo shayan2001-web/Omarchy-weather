@@ -2,7 +2,9 @@
 set -euo pipefail
 
 DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 APP_DIR="$DATA_HOME/omarchy-weather"
+CACHE_DIR="$CACHE_HOME/omarchy-weather"
 BIN_DIR="$HOME/.local/bin"
 APPLICATIONS_DIR="$DATA_HOME/applications"
 ICON_DIR="$DATA_HOME/icons/hicolor"
@@ -37,7 +39,7 @@ PY
   fi
 fi
 
-rm -rf -- "$APP_DIR"
+rm -rf -- "$APP_DIR" "$CACHE_DIR"
 rm -f -- \
   "$BIN_DIR/omarchy-weather" \
   "$BIN_DIR/serve-omarchy-weather.py" \
@@ -56,5 +58,5 @@ if command -v update-desktop-database >/dev/null 2>&1 && [[ -d "$APPLICATIONS_DI
   update-desktop-database "$APPLICATIONS_DIR" >/dev/null 2>&1 || true
 fi
 
-printf 'Removed the Omarchy Weather desktop launcher, Waybar command, and installed app files.\n'
+printf 'Removed the Omarchy Weather desktop launcher, Waybar command, installed app files, and local cache.\n'
 printf 'Your Waybar and location settings in %s were left in place.\n' "${XDG_CONFIG_HOME:-$HOME/.config}/omarchy-weather"

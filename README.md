@@ -31,7 +31,7 @@ The launcher uses a Chromium-family browser's app-window mode when available, an
 
 ## Optional Waybar module
 
-The installer adds `~/.local/bin/omarchy-weather-waybar`. The module reads `~/.config/omarchy-weather/config.json`, requests current weather and air quality in parallel every 15 minutes, and opens the desktop app when clicked. It shows the AQI beside the weather when both feeds are available; if one service fails, it still displays the other. Hover for the AQI category and pollutant details. It needs `curl` and `jq`; if either is missing, the module displays an explanatory unavailable state. Install them on Arch Linux if needed:
+The installer adds `~/.local/bin/omarchy-weather-waybar`. The module reads `~/.config/omarchy-weather/config.json`, requests current weather and air quality in parallel every 15 minutes, and opens the desktop app when clicked. It saves each successful feed under `~/.cache/omarchy-weather/` for offline fallback, keyed by location and unit. If a service fails, it keeps showing that feed's last saved value; the tooltip marks cached data and its timestamp. Hover also shows the AQI category and pollutant details. It needs `curl` and `jq`; if either is missing, the module displays an explanatory unavailable state. Install them on Arch Linux if needed:
 
 ```sh
 sudo pacman -S curl jq
@@ -47,7 +47,7 @@ Merge `~/.config/omarchy-weather/waybar-weather-module.jsonc` into your existing
 ./scripts/uninstall-omarchy.sh
 ```
 
-The uninstall script removes the user-level app, menu entry, icons, and Waybar command. It deliberately leaves `~/.config/omarchy-weather/`—including your location settings and copied Waybar snippets—in place.
+The uninstall script removes the user-level app, menu entry, icons, Waybar command, and local Waybar response cache. It deliberately leaves `~/.config/omarchy-weather/`—including your location settings and copied Waybar snippets—in place.
 
 ## Run locally for development
 
@@ -61,7 +61,7 @@ Then open <http://127.0.0.1:4173>. Opening `index.html` directly will not enable
 
 ## Checks
 
-Run `./tests/run.sh` to check JavaScript and shell syntax, PWA asset and DOM references, mocked Waybar success/fallback states, and the Omarchy install/reinstall/local-server/uninstall lifecycle. The test suite needs Bash, Node.js, Python 3, and `jq`; weather requests are mocked, so it does not need a network connection.
+Run `./tests/run.sh` to check JavaScript and shell syntax, PWA asset and DOM references, mocked Waybar live/failure/offline-cache states, and the Omarchy install/reinstall/local-server/uninstall lifecycle. The test suite needs Bash, Node.js, Python 3, and `jq`; weather requests are mocked, so it does not need a network connection.
 
 ## Weather data
 

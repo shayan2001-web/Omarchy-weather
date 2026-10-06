@@ -90,6 +90,7 @@ TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/omarchy-weather-tests.XXXXXX")"
 TEST_HOME="$TEMP_DIR/home"
 DATA_HOME="$TEST_HOME/data"
 CONFIG_HOME="$TEST_HOME/config"
+CACHE_HOME="$TEST_HOME/cache"
 RUNTIME_HOME="$TEST_HOME/runtime"
 
 cleanup() {
@@ -108,6 +109,7 @@ run_with_test_home() {
   HOME="$TEST_HOME" \
   XDG_DATA_HOME="$DATA_HOME" \
   XDG_CONFIG_HOME="$CONFIG_HOME" \
+  XDG_CACHE_HOME="$CACHE_HOME" \
   XDG_RUNTIME_DIR="$RUNTIME_HOME" \
     "$@"
 }
@@ -167,6 +169,8 @@ REUSED_URL="$(run_with_test_home env OMARCHY_WEATHER_PORT="$TEST_PORT" python3 \
   "$BIN_DIR/serve-omarchy-weather.py" "$APP_DIR")"
 read -r REUSED_PID _ < "$RUNTIME_HOME/omarchy-weather-server.pid"
 [[ "$REUSED_URL" == "$SERVER_URL" && "$REUSED_PID" == "$SERVER_PID" ]]
+mkdir -p "$CACHE_HOME/omarchy-weather"
+printf '{}' > "$CACHE_HOME/omarchy-weather/waybar-test.json"
 
 run_with_test_home "$ROOT_DIR/scripts/uninstall-omarchy.sh" >/dev/null
 [[ ! -e "$APP_DIR" ]]
@@ -177,6 +181,8 @@ run_with_test_home "$ROOT_DIR/scripts/uninstall-omarchy.sh" >/dev/null
 [[ ! -e "$DATA_HOME/icons/hicolor/512x512/apps/omarchy-weather.png" ]]
 [[ -f "$CONFIG_DIR/config.json" ]]
 [[ -f "$CONFIG_DIR/waybar-weather.css" ]]
+[[ ! -e "$CACHE_HOME/omarchy-weather" ]]
+[[ -d "$CACHE_HOME" ]]
 [[ ! -e "$RUNTIME_HOME/omarchy-weather-server.pid" ]]
 python3 - "$TEST_PORT" <<'PY'
 import socket

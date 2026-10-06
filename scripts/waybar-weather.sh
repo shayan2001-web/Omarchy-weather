@@ -45,12 +45,14 @@ fi
 
 case "$unit" in
   c|celsius)
+    unit='c'
     api_temperature_unit='celsius'
     temperature_symbol='C'
     api_wind_unit='kmh'
     wind_symbol='km/h'
     ;;
   f|fahrenheit)
+    unit='f'
     api_temperature_unit='fahrenheit'
     temperature_symbol='F'
     api_wind_unit='mph'
@@ -62,8 +64,13 @@ case "$unit" in
     ;;
 esac
 
+cache_home="${XDG_CACHE_HOME:-$HOME/.cache}"
+cache_dir="$cache_home/omarchy-weather"
+cache_file="$cache_dir/waybar-${latitude}-${longitude}-${unit}.json"
+
 request_dir="$(mktemp -d "${TMPDIR:-/tmp}/omarchy-weather-waybar.XXXXXX")"
-trap 'rm -rf -- "$request_dir"' EXIT
+cache_temp=''
+trap 'rm -rf -- "$request_dir"; if [[ -n "${cache_temp:-}" ]]; then rm -f -- "$cache_temp"; fi' EXIT
 weather_file="$request_dir/weather.json"
 air_quality_file="$request_dir/air-quality.json"
 
@@ -89,25 +96,104 @@ curl \
   "$AIR_QUALITY_API" 2>/dev/null &
 air_quality_pid=$!
 
+weather_fresh=false
 weather_available=false
+weather_stale=false
+weather_timestamp=0
+weather_json='{}'
 if wait "$weather_pid" && jq -e '(.current | type == "object") and (.current.temperature_2m | type == "number")' "$weather_file" >/dev/null 2>&1; then
+  weather_fresh=true
   weather_available=true
+  weather_timestamp="$(date +%s)"
   weather_json="$(cat "$weather_file")"
-else
-  weather_json='{}'
 fi
 
+air_quality_fresh=false
 air_quality_available=false
+air_quality_stale=false
+air_quality_timestamp=0
+air_quality_json='{}'
 if wait "$air_quality_pid" && jq -e '(.current | type == "object") and (.current.us_aqi | type == "number")' "$air_quality_file" >/dev/null 2>&1; then
+  air_quality_fresh=true
   air_quality_available=true
+  air_quality_timestamp="$(date +%s)"
   air_quality_json="$(cat "$air_quality_file")"
-else
-  air_quality_json='{}'
+fi
+
+old_cache_json='{}'
+if [[ -f "$cache_file" ]] && jq -e 'type == "object"' "$cache_file" >/dev/null 2>&1; then
+  old_cache_json="$(jq -c '
+    {
+      weather: (
+        if (try (.weather.data.current.temperature_2m | type == "number") catch false)
+          and (try (.weather.cached_at | type == "number") catch false)
+        then .weather else null end
+      ),
+      air_quality: (
+        if (try (.air_quality.data.current.us_aqi | type == "number") catch false)
+          and (try (.air_quality.cached_at | type == "number") catch false)
+        then .air_quality else null end
+      )
+    } | with_entries(select(.value != null))
+  ' "$cache_file" 2>/dev/null)" || old_cache_json='{}'
+fi
+
+if [[ "$weather_fresh" == false ]] && jq -e 'has("weather")' <<<"$old_cache_json" >/dev/null 2>&1; then
+  weather_available=true
+  weather_stale=true
+  weather_json="$(jq -c '.weather.data' <<<"$old_cache_json")"
+  weather_timestamp="$(jq -r '.weather.cached_at | floor' <<<"$old_cache_json")"
+fi
+if [[ "$air_quality_fresh" == false ]] && jq -e 'has("air_quality")' <<<"$old_cache_json" >/dev/null 2>&1; then
+  air_quality_available=true
+  air_quality_stale=true
+  air_quality_json="$(jq -c '.air_quality.data' <<<"$old_cache_json")"
+  air_quality_timestamp="$(jq -r '.air_quality.cached_at | floor' <<<"$old_cache_json")"
 fi
 
 if [[ "$weather_available" == false && "$air_quality_available" == false ]]; then
   emit_unavailable 'Weather and air-quality services are unavailable. Check your connection.'
   exit 0
+fi
+
+if [[ "$weather_fresh" == true || "$air_quality_fresh" == true ]]; then
+  if cache_payload="$(jq -cn \
+    --argjson latitude "$latitude" \
+    --argjson longitude "$longitude" \
+    --arg unit "$unit" \
+    --argjson fetched_at "$(date +%s)" \
+    --argjson weather_fresh "$weather_fresh" \
+    --argjson air_quality_fresh "$air_quality_fresh" \
+    --argjson weather "$weather_json" \
+    --argjson air_quality "$air_quality_json" \
+    --argjson old "$old_cache_json" '
+      {
+        latitude: $latitude,
+        longitude: $longitude,
+        unit: $unit,
+        weather: (
+          if $weather_fresh then {cached_at: $fetched_at, data: $weather}
+          elif ($old.weather | type) == "object" then $old.weather
+          else null end
+        ),
+        air_quality: (
+          if $air_quality_fresh then {cached_at: $fetched_at, data: $air_quality}
+          elif ($old.air_quality | type) == "object" then $old.air_quality
+          else null end
+        )
+      } | with_entries(select(.value != null))
+    ' 2>/dev/null)" && [[ -n "$cache_payload" ]] && mkdir -p -- "$cache_dir" 2>/dev/null; then
+    chmod 700 "$cache_dir" 2>/dev/null || true
+    cache_temp="$(mktemp "$cache_dir/.waybar-weather.XXXXXX" 2>/dev/null)" || cache_temp=''
+    if [[ -n "$cache_temp" ]] && printf '%s\n' "$cache_payload" > "$cache_temp" \
+      && chmod 600 "$cache_temp" 2>/dev/null \
+      && mv -f -- "$cache_temp" "$cache_file"; then
+      cache_temp=''
+    elif [[ -n "$cache_temp" ]]; then
+      rm -f -- "$cache_temp"
+      cache_temp=''
+    fi
+  fi
 fi
 
 if ! output="$(jq -cn \
@@ -116,6 +202,10 @@ if ! output="$(jq -cn \
   --arg wind_symbol "$wind_symbol" \
   --argjson weather_available "$weather_available" \
   --argjson air_quality_available "$air_quality_available" \
+  --argjson weather_stale "$weather_stale" \
+  --argjson air_quality_stale "$air_quality_stale" \
+  --argjson weather_timestamp "$weather_timestamp" \
+  --argjson air_quality_timestamp "$air_quality_timestamp" \
   --argjson weather "$weather_json" \
   --argjson air_quality "$air_quality_json" '
     def display_number:
@@ -173,17 +263,22 @@ if ! output="$(jq -cn \
         (if $has_air_quality then "US AQI \($aqi) · \($air_level.label)" else "Air-quality data unavailable" end),
         (if $has_air_quality then "PM2.5 \($pm25) · PM10 \($pm10) µg/m³" else null end),
         (if $has_air_quality then "O₃ \($ozone) · NO₂ \($nitrogen_dioxide) µg/m³" else null end),
-        (if $has_weather then "Weather data: Open-Meteo" else null end),
-        (if $has_air_quality then "Air-quality data: Open-Meteo · CAMS" else null end)
+        (if $weather_stale or $air_quality_stale then "Live data unavailable · showing saved values where needed" else null end),
+        (if $has_weather then
+          "Weather data: Open-Meteo" + (if $weather_stale then " · cached \($weather_timestamp | todate)" else " · live" end)
+         else null end),
+        (if $has_air_quality then
+          "Air-quality data: Open-Meteo · CAMS" + (if $air_quality_stale then " · cached \($air_quality_timestamp | todate)" else " · live" end)
+         else null end)
       ] | map(select(. != null)) | join("\n")) as $tooltip
     | {
         text: $text,
         tooltip: $tooltip,
         class: (if $has_weather then $condition.class else "unavailable" end),
-        alt: (if $has_weather and $has_air_quality then "\($condition.label), US AQI \($aqi), \($air_level.label)"
+        alt: ((if $has_weather and $has_air_quality then "\($condition.label), US AQI \($aqi), \($air_level.label)"
               elif $has_weather then $condition.label
               elif $has_air_quality then "US AQI \($aqi), \($air_level.label)"
-              else "Weather unavailable" end)
+              else "Weather unavailable" end) + (if $weather_stale or $air_quality_stale then ", cached data" else "" end))
       }
   ' 2>/dev/null)"; then
   emit_unavailable 'Open-Meteo returned unreadable weather or air-quality data.'
