@@ -61,7 +61,7 @@ Then open <http://127.0.0.1:4173>. Opening `index.html` directly will not enable
 
 ## Checks
 
-Run `./tests/run.sh` to check JavaScript and shell syntax, PWA asset and DOM references, mocked Waybar live/failure/offline-cache states, and the Omarchy install/reinstall/local-server/uninstall lifecycle. The test suite needs Bash, Node.js, Python 3, and `jq`; weather requests are mocked, so it does not need a network connection.
+Run `./tests/run.sh` to check JavaScript and shell syntax, PWA asset and DOM references, mocked Waybar live/failure/offline-cache states, and the Omarchy install/reinstall/local-server/uninstall lifecycle. The test suite needs Bash, Node.js, Python 3, and `jq`; weather requests are mocked, so it does not need a network connection. For final validation on Omarchy, see the [smoke-test checklist](./docs/OMARCHY_SMOKE_TEST.md).
 
 ## Weather data
 
