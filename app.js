@@ -2,10 +2,12 @@
   'use strict';
 
   const WEATHER_API = 'https://api.open-meteo.com/v1/forecast';
+  const AIR_QUALITY_API = 'https://air-quality-api.open-meteo.com/v1/air-quality';
   const GEOCODING_API = 'https://geocoding-api.open-meteo.com/v1/search';
   const PLACE_KEY = 'omarchy-weather:place';
   const UNIT_KEY = 'omarchy-weather:unit';
   const CACHE_PREFIX = 'omarchy-weather:forecast:';
+  const AIR_CACHE_PREFIX = 'omarchy-weather:air-quality:';
   const DEFAULT_PLACE = {
     id: 'islamabad-pk',
     name: 'Islamabad',
@@ -52,6 +54,16 @@
     uvNote: $('#uv-note'),
     hourlyForecast: $('#hourly-forecast'),
     dailyForecast: $('#daily-forecast'),
+    airQualityPanel: $('#air-quality-panel'),
+    airQualityUpdated: $('#air-quality-updated'),
+    usAqi: $('#us-aqi'),
+    airCategory: $('#air-category'),
+    airAdvice: $('#air-advice'),
+    aqiMarker: $('#aqi-marker'),
+    pm25Value: $('#pm25-value'),
+    pm10Value: $('#pm10-value'),
+    ozoneValue: $('#ozone-value'),
+    nitrogenDioxideValue: $('#nitrogen-dioxide-value'),
     toast: $('#app-toast'),
     toastMessage: $('#toast-message'),
     toastClose: $('#toast-close'),
@@ -93,19 +105,24 @@
   }
 
   const storedPlace = readStoredJson(PLACE_KEY);
-  const storedUnit = window.localStorage.getItem(UNIT_KEY);
+  const storedUnit = readStoredValue(UNIT_KEY);
   const state = {
     place: isValidPlace(storedPlace) ? storedPlace : DEFAULT_PLACE,
     unit: storedUnit === 'f' ? 'f' : 'c',
     weather: null,
+    airQuality: null,
     isLoading: false,
+    isAirLoading: false,
     status: { tone: 'loading', label: 'Connecting' },
+    airStatus: { tone: 'loading', label: 'Checking air' },
     searchResults: [],
     activeSearchIndex: -1,
     searchTimer: null,
     searchController: null,
     weatherController: null,
     weatherRequestId: 0,
+    airQualityController: null,
+    airQualityRequestId: 0,
     toastTimer: null,
     installPrompt: null,
   };
@@ -175,6 +192,7 @@
   }
 
   function safeNumber(value) {
+    if (value === null || value === undefined || value === '') return null;
     const number = Number(value);
     return Number.isFinite(number) ? number : null;
   }
@@ -306,6 +324,16 @@
   function readForecastCache(place) {
     const cached = readStoredJson(forecastCacheKey(place));
     if (!cached || !cached.weather?.current || !cached.weather?.daily || !cached.weather?.hourly) return null;
+    return cached;
+  }
+
+  function airQualityCacheKey(place) {
+    return `${AIR_CACHE_PREFIX}${Number(place.latitude).toFixed(3)},${Number(place.longitude).toFixed(3)}`;
+  }
+
+  function readAirQualityCache(place) {
+    const cached = readStoredJson(airQualityCacheKey(place));
+    if (!cached || !cached.airQuality?.current) return null;
     return cached;
   }
 
@@ -496,6 +524,75 @@
     elements.dailyForecast.innerHTML = rows.join('');
   }
 
+  function airQualityLevel(index) {
+    if (index === null) {
+      return {
+        label: 'AQI unavailable',
+        level: 'unknown',
+        advice: 'An AQI reading is not available for this location. Pollutant levels may still be shown.',
+      };
+    }
+    if (index <= 50) {
+      return { label: 'Good', level: 'good', advice: 'Air quality is satisfactory for most people.' };
+    }
+    if (index <= 100) {
+      return { label: 'Moderate', level: 'moderate', advice: 'Sensitive individuals may wish to reduce prolonged outdoor exertion.' };
+    }
+    if (index <= 150) {
+      return { label: 'Unhealthy for sensitive groups', level: 'sensitive', advice: 'Sensitive groups should limit prolonged or heavy outdoor exertion.' };
+    }
+    if (index <= 200) {
+      return { label: 'Unhealthy', level: 'unhealthy', advice: 'Consider limiting prolonged outdoor activity and follow local guidance.' };
+    }
+    if (index <= 300) {
+      return { label: 'Very unhealthy', level: 'very-unhealthy', advice: 'Reduce outdoor exposure and follow local public-health guidance.' };
+    }
+    return { label: 'Hazardous', level: 'hazardous', advice: 'Avoid outdoor activity where possible and follow local public-health alerts.' };
+  }
+
+  function renderAirQuality() {
+    const current = state.airQuality?.current || null;
+    elements.aqiMarker.style.display = 'none';
+
+    if (!current) {
+      elements.airQualityPanel.dataset.airLevel = 'unknown';
+      setText(elements.usAqi, '—');
+      setText(elements.airCategory, state.isAirLoading ? 'Checking…' : 'Unavailable');
+      setText(elements.airAdvice, state.isAirLoading
+        ? 'Checking local air quality…'
+        : 'Air-quality data is unavailable right now. Try again later.');
+      setText(elements.pm25Value, '—');
+      setText(elements.pm10Value, '—');
+      setText(elements.ozoneValue, '—');
+      setText(elements.nitrogenDioxideValue, '—');
+      setText(elements.airQualityUpdated, state.isAirLoading ? 'UPDATING' : 'DATA UNAVAILABLE');
+      return;
+    }
+
+    const aqi = safeNumber(current.us_aqi);
+    const category = airQualityLevel(aqi);
+    elements.airQualityPanel.dataset.airLevel = category.level;
+    setText(elements.usAqi, aqi === null ? '—' : String(Math.round(aqi)));
+    setText(elements.airCategory, category.label);
+    setText(elements.airAdvice, category.advice);
+    setText(elements.pm25Value, formatDecimal(current.pm2_5));
+    setText(elements.pm10Value, formatDecimal(current.pm10));
+    setText(elements.ozoneValue, formatDecimal(current.ozone));
+    setText(elements.nitrogenDioxideValue, formatDecimal(current.nitrogen_dioxide));
+
+    if (aqi !== null) {
+      const position = Math.max(0, Math.min(aqi, 500)) / 5;
+      elements.aqiMarker.style.left = `${position}%`;
+      elements.aqiMarker.style.display = '';
+    }
+
+    const timestamp = current.time ? formatForecastTime(current.time) : '';
+    const prefix = state.isAirLoading
+      ? (state.airQuality ? 'SAVED' : 'UPDATING')
+      : state.airStatus.tone === 'offline' ? 'SAVED' : 'MODEL';
+    setText(elements.airQualityUpdated, timestamp ? `${prefix} · ${timestamp}` : prefix);
+  }
+
   function renderWeather() {
     const hasWeather = Boolean(state.weather?.current && state.weather?.daily && state.weather?.hourly);
     elements.weatherAlert.hidden = hasWeather || state.isLoading;
@@ -533,6 +630,7 @@
     renderLocation();
     updateUnitButtons();
     renderWeather();
+    renderAirQuality();
     setStatus(state.status.tone, state.status.label);
   }
 
@@ -676,6 +774,7 @@
     if (!isValidPlace(place)) return;
     state.weatherRequestId += 1;
     if (state.weatherController) state.weatherController.abort();
+    if (state.airQualityController) state.airQualityController.abort();
     state.place = {
       ...place,
       latitude: Number(place.latitude),
@@ -687,13 +786,64 @@
     hideSearchResults();
 
     const cached = readForecastCache(state.place);
+    const cachedAir = readAirQualityCache(state.place);
     state.weather = cached ? cached.weather : null;
+    state.airQuality = cachedAir ? cachedAir.airQuality : null;
     state.isLoading = Boolean(!cached);
+    state.isAirLoading = Boolean(!cachedAir);
     state.status = cached
       ? { tone: 'offline', label: 'Saved forecast' }
       : { tone: 'loading', label: 'Connecting' };
+    state.airStatus = cachedAir
+      ? { tone: 'offline', label: 'Saved air data' }
+      : { tone: 'loading', label: 'Checking air' };
     renderAll();
     fetchForecast(state.place);
+  }
+
+  async function fetchAirQuality(place = state.place) {
+    if (!isValidPlace(place)) return;
+    if (state.airQualityController) state.airQualityController.abort();
+    const controller = new AbortController();
+    state.airQualityController = controller;
+    const requestId = ++state.airQualityRequestId;
+    const timeout = window.setTimeout(() => controller.abort(), 15000);
+
+    state.isAirLoading = true;
+    state.airStatus = { tone: 'loading', label: state.airQuality ? 'Refreshing air' : 'Checking air' };
+    renderAirQuality();
+
+    const params = new URLSearchParams({
+      latitude: Number(place.latitude).toFixed(4),
+      longitude: Number(place.longitude).toFixed(4),
+      current: 'us_aqi,pm2_5,pm10,ozone,nitrogen_dioxide',
+      timezone: 'auto',
+    });
+
+    try {
+      const response = await fetch(`${AIR_QUALITY_API}?${params}`, { signal: controller.signal });
+      if (!response.ok) throw new Error('Air-quality service returned an error.');
+      const data = await response.json();
+      if (!data.current) throw new Error('Air-quality data was incomplete.');
+      if (requestId !== state.airQualityRequestId) return;
+
+      state.airQuality = data;
+      state.isAirLoading = false;
+      state.airStatus = { tone: 'live', label: 'Model data' };
+      writeStoredJson(airQualityCacheKey(place), { airQuality: data, savedAt: Date.now() });
+      renderAirQuality();
+    } catch (error) {
+      if (requestId !== state.airQualityRequestId) return;
+      if (controller.signal.aborted && state.airQualityController !== controller) return;
+      state.isAirLoading = false;
+      state.airStatus = state.airQuality
+        ? { tone: 'offline', label: 'Saved air data' }
+        : { tone: 'error', label: 'Air data unavailable' };
+      renderAirQuality();
+    } finally {
+      window.clearTimeout(timeout);
+      if (requestId === state.airQualityRequestId) state.isAirLoading = false;
+    }
   }
 
   async function fetchForecast(place = state.place) {
@@ -708,6 +858,7 @@
     state.status = { tone: 'loading', label: state.weather ? 'Refreshing' : 'Connecting' };
     elements.weatherAlert.hidden = true;
     setStatus(state.status.tone, state.status.label);
+    fetchAirQuality(place);
 
     const params = new URLSearchParams({
       latitude: Number(place.latitude).toFixed(4),
@@ -897,9 +1048,14 @@
   setupInstallPrompt();
 
   const cachedForecast = readForecastCache(state.place);
+  const cachedAirQuality = readAirQualityCache(state.place);
   if (cachedForecast) {
     state.weather = cachedForecast.weather;
     state.status = { tone: 'offline', label: 'Saved forecast' };
+  }
+  if (cachedAirQuality) {
+    state.airQuality = cachedAirQuality.airQuality;
+    state.airStatus = { tone: 'offline', label: 'Saved air data' };
   }
   state.isLoading = true;
   renderAll();

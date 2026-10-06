@@ -1,10 +1,11 @@
 # Omarchy Weather
 
-A calm, open-source weather dashboard built with Omarchy Linux in mind. It is a lightweight, installable web app with an optional user-level desktop launcher and Waybar module—no JavaScript framework, build step, or weather API key required.
+A calm, open-source weather dashboard built with Omarchy Linux in mind. It is a lightweight, installable web app with an optional user-level desktop launcher and Waybar module. It needs no JavaScript framework or build step; personal, non-commercial use needs no weather API key.
 
 ## What it does
 
 - Shows current conditions, feels-like temperature, today's high and low, sunrise and sunset, and seven-hour and seven-day forecasts.
+- Displays a model-based U.S. AQI with PM2.5, PM10, ozone, and nitrogen-dioxide readings.
 - Searches worldwide locations and can use the device's location when permission is granted.
 - Switches between Celsius and Fahrenheit, remembers the selected location and unit, and saves the last forecast for offline viewing.
 - Uses a responsive dark interface with keyboard-friendly city search (`Ctrl` + `K` or `/`).
@@ -60,7 +61,7 @@ Then open <http://127.0.0.1:4173>. Opening `index.html` directly will not enable
 
 ## Weather data
 
-The dashboard and Waybar module request only the weather data they need from the public Open-Meteo APIs. No account or API key is used. An internet connection is needed for fresh weather and city searches; the dashboard keeps its last successfully loaded forecast locally so it remains available offline.
+The dashboard requests weather forecasts, air-quality estimates, and city-search results directly from Open-Meteo; the Waybar module requests current weather from the same provider. No API key is needed for personal, non-commercial use. Air-quality estimates are based on CAMS models, not local station measurements. Open-Meteo's air-quality API is for non-commercial use under 10,000 daily calls; review the [provider terms](https://open-meteo.com/en/terms) before commercial deployment. An internet connection is needed for fresh data and city searches; the last successful weather and air-quality responses are saved locally for offline viewing.
 
 ## License
 

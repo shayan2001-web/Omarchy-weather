@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#0b1013" />
     <meta
       name="description"
-      content="A calm, open-source weather dashboard designed for Omarchy Linux."
+      content="A calm, open-source weather and air quality dashboard designed for Omarchy Linux."
     />
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
     <link rel="manifest" href="./manifest.webmanifest" />
@@ -232,6 +232,63 @@
           </article>
         </section>
 
+        <section
+          class="panel air-quality-panel"
+          id="air-quality-panel"
+          aria-labelledby="air-quality-title"
+          data-air-level="unknown"
+        >
+          <div class="section-heading air-quality-heading">
+            <div>
+              <p class="section-kicker">OUTDOOR CONDITIONS</p>
+              <h2 id="air-quality-title">Air quality</h2>
+            </div>
+            <span class="heading-note" id="air-quality-updated">CHECKING</span>
+          </div>
+          <div class="air-quality-content">
+            <div class="air-score">
+              <span class="air-score-label">US AIR QUALITY INDEX</span>
+              <div class="air-number-line">
+                <strong id="us-aqi">—</strong>
+                <span>/ 500</span>
+              </div>
+              <span class="air-category" id="air-category" aria-live="polite">Checking…</span>
+            </div>
+            <div class="air-summary">
+              <div class="aqi-scale" aria-hidden="true">
+                <span class="aqi-marker" id="aqi-marker"></span>
+              </div>
+              <div class="aqi-scale-labels" aria-hidden="true">
+                <span>0</span><span>100</span><span>200</span><span>300</span><span>500</span>
+              </div>
+              <p id="air-advice">Checking local air quality…</p>
+            </div>
+            <div class="pollutant-grid" role="group" aria-label="Current pollutant concentrations">
+              <div class="pollutant-card">
+                <span class="pollutant-name">PM₂.₅</span>
+                <div class="pollutant-reading"><strong id="pm25-value">—</strong><span>µg/m³</span></div>
+                <small>Fine particles</small>
+              </div>
+              <div class="pollutant-card">
+                <span class="pollutant-name">PM₁₀</span>
+                <div class="pollutant-reading"><strong id="pm10-value">—</strong><span>µg/m³</span></div>
+                <small>Coarse particles</small>
+              </div>
+              <div class="pollutant-card">
+                <span class="pollutant-name">O₃</span>
+                <div class="pollutant-reading"><strong id="ozone-value">—</strong><span>µg/m³</span></div>
+                <small>Ozone</small>
+              </div>
+              <div class="pollutant-card">
+                <span class="pollutant-name">NO₂</span>
+                <div class="pollutant-reading"><strong id="nitrogen-dioxide-value">—</strong><span>µg/m³</span></div>
+                <small>Nitrogen dioxide</small>
+              </div>
+            </div>
+          </div>
+          <p class="air-footnote">CAMS-based model estimate · follow local public-health guidance for alerts.</p>
+        </section>
+
         <section class="forecast-grid" aria-label="Weather forecast">
           <article class="panel hourly-panel" aria-labelledby="hourly-title">
             <div class="section-heading forecast-heading">
@@ -264,7 +321,7 @@
       <footer class="app-footer">
         <span>Made for a quieter kind of desktop.</span>
         <span class="footer-credit">
-          Weather data by
+          Weather and air data by
           <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a>
           <span aria-hidden="true">·</span>
           Open source

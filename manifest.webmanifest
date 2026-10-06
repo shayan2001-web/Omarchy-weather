@@ -1,7 +1,7 @@
 {
   "name": "Omarchy Weather",
   "short_name": "Weather",
-  "description": "A calm, open-source weather dashboard designed for Omarchy Linux.",
+  "description": "A calm, open-source weather and air quality dashboard designed for Omarchy Linux.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

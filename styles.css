@@ -985,6 +985,218 @@ main {
   white-space: nowrap;
 }
 
+.air-quality-panel {
+  margin-top: 17px;
+  padding: 21px 23px 14px;
+  --air-color: #9ba8a4;
+  --air-soft: rgba(155, 168, 164, 0.08);
+  --air-border: rgba(155, 168, 164, 0.22);
+}
+
+.air-quality-panel[data-air-level='good'] {
+  --air-color: #c9f47a;
+  --air-soft: rgba(201, 244, 122, 0.08);
+  --air-border: rgba(201, 244, 122, 0.23);
+}
+
+.air-quality-panel[data-air-level='moderate'] {
+  --air-color: #e2d56d;
+  --air-soft: rgba(226, 213, 109, 0.08);
+  --air-border: rgba(226, 213, 109, 0.23);
+}
+
+.air-quality-panel[data-air-level='sensitive'] {
+  --air-color: #eab46b;
+  --air-soft: rgba(234, 180, 107, 0.08);
+  --air-border: rgba(234, 180, 107, 0.23);
+}
+
+.air-quality-panel[data-air-level='unhealthy'] {
+  --air-color: #e98268;
+  --air-soft: rgba(233, 130, 104, 0.08);
+  --air-border: rgba(233, 130, 104, 0.23);
+}
+
+.air-quality-panel[data-air-level='very-unhealthy'] {
+  --air-color: #d976a2;
+  --air-soft: rgba(217, 118, 162, 0.09);
+  --air-border: rgba(217, 118, 162, 0.24);
+}
+
+.air-quality-panel[data-air-level='hazardous'] {
+  --air-color: #bc7cd0;
+  --air-soft: rgba(188, 124, 208, 0.1);
+  --air-border: rgba(188, 124, 208, 0.24);
+}
+
+.air-quality-heading {
+  align-items: center;
+}
+
+.air-quality-content {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.38fr) minmax(190px, 0.78fr) minmax(350px, 1.3fr);
+  align-items: center;
+  gap: 24px;
+  margin-top: 17px;
+}
+
+.air-score {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.air-score-label,
+.pollutant-name {
+  color: #819095;
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 0.09em;
+}
+
+.air-number-line {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  line-height: 0.95;
+}
+
+.air-number-line strong {
+  color: #edf2ee;
+  font-size: 48px;
+  font-weight: 400;
+  letter-spacing: -0.09em;
+}
+
+.air-number-line > span {
+  color: #6f7e82;
+  font-family: var(--mono);
+  font-size: 9px;
+}
+
+.air-category {
+  width: fit-content;
+  max-width: 100%;
+  padding: 5px 8px;
+  border: 1px solid var(--air-border);
+  border-radius: 99px;
+  background: var(--air-soft);
+  color: var(--air-color);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.air-summary {
+  min-width: 0;
+}
+
+.aqi-scale {
+  position: relative;
+  height: 7px;
+  border-radius: 99px;
+  background: linear-gradient(
+    90deg,
+    #81bd78 0%,
+    #a8d27a 10%,
+    #d1d66f 20%,
+    #e4c267 30%,
+    #e99960 40%,
+    #d96879 60%,
+    #a476bd 80%,
+    #713951 100%
+  );
+}
+
+.aqi-marker {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 14px;
+  height: 14px;
+  transform: translate(-50%, -50%);
+  border: 2px solid #eaf0ed;
+  border-radius: 50%;
+  background: var(--air-color);
+  box-shadow: 0 0 0 3px rgba(9, 14, 16, 0.55), 0 0 10px var(--air-color);
+  transition: left 260ms ease, background 180ms ease;
+}
+
+.aqi-scale-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  color: #67767a;
+  font-family: var(--mono);
+  font-size: 8px;
+}
+
+.air-summary p {
+  margin: 12px 0 0;
+  color: #a7b2ad;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.pollutant-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.pollutant-card {
+  display: grid;
+  min-width: 0;
+  min-height: 78px;
+  align-content: center;
+  gap: 5px;
+  padding: 10px 11px;
+  border: 1px solid rgba(221, 235, 241, 0.06);
+  border-radius: 12px;
+  background: rgba(25, 35, 40, 0.62);
+}
+
+.pollutant-name {
+  font-size: 8px;
+}
+
+.pollutant-reading {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.pollutant-reading strong {
+  overflow: hidden;
+  color: #e1e9e4;
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: -0.055em;
+  text-overflow: ellipsis;
+}
+
+.pollutant-reading span {
+  color: #738186;
+  font-family: var(--mono);
+  font-size: 7px;
+}
+
+.pollutant-card small {
+  overflow: hidden;
+  color: #758388;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.air-footnote {
+  margin: 12px 0 0;
+  color: #637277;
+  font-size: 9px;
+}
+
 .forecast-grid {
   grid-template-columns: minmax(0, 1.28fr) minmax(360px, 0.92fr);
   margin-top: 17px;
@@ -1320,6 +1532,15 @@ main {
     padding: 20px;
   }
 
+  .air-quality-panel {
+    padding: 20px;
+  }
+
+  .air-quality-content {
+    grid-template-columns: minmax(105px, 0.35fr) minmax(170px, 0.7fr) minmax(300px, 1.3fr);
+    gap: 16px;
+  }
+
   .current-card-content {
     padding-right: 22px;
     padding-left: 22px;
@@ -1393,6 +1614,19 @@ main {
   .forecast-grid {
     grid-template-columns: minmax(0, 1fr);
     gap: 13px;
+  }
+
+  .air-quality-panel {
+    padding: 20px;
+  }
+
+  .air-quality-content {
+    grid-template-columns: minmax(120px, 0.42fr) minmax(0, 1fr);
+    gap: 17px;
+  }
+
+  .pollutant-grid {
+    grid-column: 1 / -1;
   }
 
   .current-card,
@@ -1674,6 +1908,40 @@ main {
 
   .metric-note {
     font-size: 9px;
+  }
+
+  .air-quality-panel {
+    padding: 18px 16px 14px;
+  }
+
+  .air-quality-content {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 15px;
+    margin-top: 14px;
+  }
+
+  .air-score {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 7px 9px;
+  }
+
+  .air-score-label {
+    width: 100%;
+  }
+
+  .air-number-line strong {
+    font-size: 41px;
+  }
+
+  .air-category {
+    font-size: 9px;
+  }
+
+  .pollutant-grid {
+    grid-column: auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .hourly-strip {
