@@ -59,6 +59,10 @@ python3 -m http.server 4173 --bind 127.0.0.1
 
 Then open <http://127.0.0.1:4173>. Opening `index.html` directly will not enable service-worker or installable-app features. On another local port or an HTTPS host, the app can also be installed from a supported browser's app-install action.
 
+## Checks
+
+Run `./tests/run.sh` to check JavaScript and shell syntax, PWA asset and DOM references, mocked Waybar success/fallback states, and the Omarchy install/upgrade/uninstall lifecycle. The test suite needs Bash, Node.js, Python 3, and `jq`; weather requests are mocked, so it does not need a network connection.
+
 ## Weather data
 
 The dashboard requests weather forecasts, air-quality estimates, and city-search results directly from Open-Meteo; the Waybar module requests current weather from the same provider. No API key is needed for personal, non-commercial use. Air-quality estimates are based on CAMS models, not local station measurements. Open-Meteo's air-quality API is for non-commercial use under 10,000 daily calls; review the [provider terms](https://open-meteo.com/en/terms) before commercial deployment. An internet connection is needed for fresh data and city searches; the last successful weather and air-quality responses are saved locally for offline viewing.
