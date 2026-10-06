@@ -7,6 +7,10 @@
   color: #819096;
 }
 
+#custom-weather.stale {
+  color: #e5b75b;
+}
+
 #custom-weather.rain,
 #custom-weather.snow {
   color: #84c7ec;

@@ -272,9 +272,9 @@ if ! output="$(jq -cn \
          else null end)
       ] | map(select(. != null)) | join("\n")) as $tooltip
     | {
-        text: $text,
+        text: ((if $weather_stale or $air_quality_stale then "~" else "" end) + $text),
         tooltip: $tooltip,
-        class: (if $has_weather then $condition.class else "unavailable" end),
+        class: (if $weather_stale or $air_quality_stale then "stale" elif $has_weather then $condition.class else "unavailable" end),
         alt: ((if $has_weather and $has_air_quality then "\($condition.label), US AQI \($aqi), \($air_level.label)"
               elif $has_weather then $condition.label
               elif $has_air_quality then "US AQI \($aqi), \($air_level.label)"

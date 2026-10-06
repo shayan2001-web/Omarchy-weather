@@ -109,14 +109,14 @@ jq -e '.weather.data.current.temperature_2m == 24.4 and .air_quality.data.curren
 [[ "$(stat -c '%a' "$OFFLINE_CACHE_DIR/omarchy-weather")" == 700 ]]
 [[ "$(stat -c '%a' "$CACHE_FILE")" == 600 ]]
 
-run_case weather-only '☂ 24°C · AQI 156' \
-  '(.tooltip | contains("Weather data: Open-Meteo · live")) and (.tooltip | contains("Air-quality data: Open-Meteo · CAMS · cached ")) and (.tooltip | contains("Live data unavailable · showing saved values where needed"))' \
+run_case weather-only '~☂ 24°C · AQI 156' \
+  '(.class == "stale") and (.tooltip | contains("Weather data: Open-Meteo · live")) and (.tooltip | contains("Air-quality data: Open-Meteo · CAMS · cached ")) and (.tooltip | contains("Live data unavailable · showing saved values where needed"))' \
   "$OFFLINE_CACHE_DIR"
-run_case aqi-only '☂ 24°C · AQI 156' \
-  '(.tooltip | contains("Weather data: Open-Meteo · cached ")) and (.tooltip | contains("Air-quality data: Open-Meteo · CAMS · live"))' \
+run_case aqi-only '~☂ 24°C · AQI 156' \
+  '(.class == "stale") and (.tooltip | contains("Weather data: Open-Meteo · cached ")) and (.tooltip | contains("Air-quality data: Open-Meteo · CAMS · live"))' \
   "$OFFLINE_CACHE_DIR"
-run_case neither '☂ 24°C · AQI 156' \
-  '(.alt | contains("cached data")) and (.tooltip | contains("Weather data: Open-Meteo · cached ")) and (.tooltip | contains("Air-quality data: Open-Meteo · CAMS · cached "))' \
+run_case neither '~☂ 24°C · AQI 156' \
+  '(.class == "stale") and (.alt | contains("cached data")) and (.tooltip | contains("Weather data: Open-Meteo · cached ")) and (.tooltip | contains("Air-quality data: Open-Meteo · CAMS · cached "))' \
   "$OFFLINE_CACHE_DIR"
 
 # A different coordinate or unit must not reuse the saved response.
