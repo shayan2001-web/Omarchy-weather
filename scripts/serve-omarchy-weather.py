@@ -14,14 +14,13 @@ import urllib.request
 from pathlib import Path
 
 HOST = "127.0.0.1"
-PORT = 47653  # Keep the origin stable so browser storage and the service worker persist.
-URL = f"http://{HOST}:{PORT}/"
+DEFAULT_PORT = 47653  # Keep the origin stable so browser storage and the service worker persist.
 EXPECTED_PAGE_MARKER = b"<title>Omarchy Weather</title>"
 
 
-def app_is_served() -> bool:
+def app_is_served(url: str) -> bool:
     try:
-        with urllib.request.urlopen(URL, timeout=0.7) as response:
+        with urllib.request.urlopen(url, timeout=0.7) as response:
             return response.status == 200 and EXPECTED_PAGE_MARKER in response.read(32768)
     except (OSError, urllib.error.URLError, TimeoutError):
         return False
@@ -42,24 +41,34 @@ def main() -> int:
         print("Usage: serve-omarchy-weather.py APP_DIRECTORY", file=sys.stderr)
         return 2
 
+    try:
+        port = int(os.environ.get("OMARCHY_WEATHER_PORT", str(DEFAULT_PORT)))
+    except ValueError:
+        print("OMARCHY_WEATHER_PORT must be an integer from 1 to 65535.", file=sys.stderr)
+        return 2
+    if not 1 <= port <= 65535:
+        print("OMARCHY_WEATHER_PORT must be an integer from 1 to 65535.", file=sys.stderr)
+        return 2
+    url = f"http://{HOST}:{port}/"
+
     app_directory = Path(sys.argv[1]).expanduser().resolve()
     if not (app_directory / "index.html").is_file():
         print(f"Omarchy Weather files were not found in {app_directory}.", file=sys.stderr)
         return 1
 
-    if app_is_served():
-        print(URL)
+    if app_is_served(url):
+        print(url)
         return 0
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
         try:
-            probe.bind((HOST, PORT))
+            probe.bind((HOST, port))
         except OSError:
-            if app_is_served():
-                print(URL)
+            if app_is_served(url):
+                print(url)
                 return 0
             print(
-                f"Port {PORT} is already in use. Close the conflicting service or change PORT in scripts/serve-omarchy-weather.py and reinstall.",
+                f"Port {port} is already in use. Choose another with OMARCHY_WEATHER_PORT.",
                 file=sys.stderr,
             )
             return 1
@@ -68,7 +77,7 @@ def main() -> int:
         sys.executable,
         "-m",
         "http.server",
-        str(PORT),
+        str(port),
         "--bind",
         HOST,
         "--directory",
@@ -87,11 +96,11 @@ def main() -> int:
         return 1
 
     pid_file = runtime_directory() / "omarchy-weather-server.pid"
-    pid_file.write_text(f"{server.pid} {PORT}\n", encoding="utf-8")
+    pid_file.write_text(f"{server.pid} {port}\n", encoding="utf-8")
 
     for _ in range(40):
-        if app_is_served():
-            print(URL)
+        if app_is_served(url):
+            print(url)
             return 0
         if server.poll() is not None:
             break

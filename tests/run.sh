@@ -87,11 +87,21 @@ PY
 "$ROOT_DIR/tests/waybar-weather.sh"
 
 TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/omarchy-weather-tests.XXXXXX")"
-trap 'rm -rf -- "$TEMP_DIR"' EXIT
 TEST_HOME="$TEMP_DIR/home"
 DATA_HOME="$TEST_HOME/data"
 CONFIG_HOME="$TEST_HOME/config"
 RUNTIME_HOME="$TEST_HOME/runtime"
+
+cleanup() {
+  if [[ -r "$RUNTIME_HOME/omarchy-weather-server.pid" ]]; then
+    read -r server_pid _ < "$RUNTIME_HOME/omarchy-weather-server.pid" || true
+    if [[ "${server_pid:-}" =~ ^[0-9]+$ ]]; then
+      kill "$server_pid" 2>/dev/null || true
+    fi
+  fi
+  rm -rf -- "$TEMP_DIR"
+}
+trap cleanup EXIT
 mkdir -p "$TEST_HOME"
 
 run_with_test_home() {
@@ -124,6 +134,40 @@ jq -e '.location == "My saved place" and .unit == "f"' \
 grep -q 'user stylesheet choice' "$CONFIG_DIR/waybar-weather.css"
 cmp "$ROOT_DIR/scripts/waybar-weather.sh" "$BIN_DIR/omarchy-weather-waybar"
 
+if invalid_output="$(run_with_test_home env OMARCHY_WEATHER_PORT=0 python3 \
+  "$BIN_DIR/serve-omarchy-weather.py" "$APP_DIR" 2>&1)"; then
+  printf 'The local server accepted an invalid port.\n' >&2
+  exit 1
+fi
+[[ "$invalid_output" == *"OMARCHY_WEATHER_PORT must be an integer from 1 to 65535"* ]]
+
+TEST_PORT="$(python3 - <<'PY'
+import socket
+
+with socket.socket() as probe:
+    probe.bind(("127.0.0.1", 0))
+    print(probe.getsockname()[1])
+PY
+)"
+SERVER_URL="$(run_with_test_home env OMARCHY_WEATHER_PORT="$TEST_PORT" python3 \
+  "$BIN_DIR/serve-omarchy-weather.py" "$APP_DIR")"
+[[ "$SERVER_URL" == "http://127.0.0.1:$TEST_PORT/" ]]
+python3 - "$SERVER_URL" <<'PY'
+import sys
+import urllib.request
+
+with urllib.request.urlopen(sys.argv[1], timeout=2) as response:
+    page = response.read().decode("utf-8")
+    if response.status != 200 or "<title>Omarchy Weather</title>" not in page:
+        raise SystemExit("The local server did not return the installed app")
+PY
+
+read -r SERVER_PID _ < "$RUNTIME_HOME/omarchy-weather-server.pid"
+REUSED_URL="$(run_with_test_home env OMARCHY_WEATHER_PORT="$TEST_PORT" python3 \
+  "$BIN_DIR/serve-omarchy-weather.py" "$APP_DIR")"
+read -r REUSED_PID _ < "$RUNTIME_HOME/omarchy-weather-server.pid"
+[[ "$REUSED_URL" == "$SERVER_URL" && "$REUSED_PID" == "$SERVER_PID" ]]
+
 run_with_test_home "$ROOT_DIR/scripts/uninstall-omarchy.sh" >/dev/null
 [[ ! -e "$APP_DIR" ]]
 [[ ! -e "$BIN_DIR/omarchy-weather" ]]
@@ -133,5 +177,22 @@ run_with_test_home "$ROOT_DIR/scripts/uninstall-omarchy.sh" >/dev/null
 [[ ! -e "$DATA_HOME/icons/hicolor/512x512/apps/omarchy-weather.png" ]]
 [[ -f "$CONFIG_DIR/config.json" ]]
 [[ -f "$CONFIG_DIR/waybar-weather.css" ]]
+[[ ! -e "$RUNTIME_HOME/omarchy-weather-server.pid" ]]
+python3 - "$TEST_PORT" <<'PY'
+import socket
+import sys
+import time
 
-printf 'Passed: syntax, PWA asset/DOM checks, Waybar fallbacks, and install/upgrade/uninstall lifecycle.\n'
+port = int(sys.argv[1])
+deadline = time.monotonic() + 5
+while time.monotonic() < deadline:
+    try:
+        with socket.create_connection(("127.0.0.1", port), timeout=0.2):
+            time.sleep(0.05)
+    except OSError:
+        break
+else:
+    raise SystemExit("The local server was still running after uninstall")
+PY
+
+printf 'Passed: syntax, PWA assets/DOM, Waybar fallbacks, and install/upgrade/server/uninstall lifecycle.\n'

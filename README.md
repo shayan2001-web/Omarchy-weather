@@ -27,7 +27,7 @@ Launch the app from Omarchy's application launcher, or run:
 ~/.local/bin/omarchy-weather
 ```
 
-The launcher uses a Chromium-family browser's app-window mode when available, and otherwise opens the app in your default browser. The local server binds only to `127.0.0.1`. It uses a stable port so browser preferences, saved forecasts, and the service-worker cache persist between launches. If port `47653` is already occupied, close the other service or change `PORT` in `scripts/serve-omarchy-weather.py`, then rerun the installer.
+The launcher uses a Chromium-family browser's app-window mode when available, and otherwise opens the app in your default browser. The local server binds only to `127.0.0.1`. It uses a stable port so browser preferences, saved forecasts, and the service-worker cache persist between launches. If port `47653` is already occupied, launch with another stable port, for example `OMARCHY_WEATHER_PORT=47654 ~/.local/bin/omarchy-weather`.
 
 ## Optional Waybar module
 
@@ -61,7 +61,7 @@ Then open <http://127.0.0.1:4173>. Opening `index.html` directly will not enable
 
 ## Checks
 
-Run `./tests/run.sh` to check JavaScript and shell syntax, PWA asset and DOM references, mocked Waybar success/fallback states, and the Omarchy install/upgrade/uninstall lifecycle. The test suite needs Bash, Node.js, Python 3, and `jq`; weather requests are mocked, so it does not need a network connection.
+Run `./tests/run.sh` to check JavaScript and shell syntax, PWA asset and DOM references, mocked Waybar success/fallback states, and the Omarchy install/reinstall/local-server/uninstall lifecycle. The test suite needs Bash, Node.js, Python 3, and `jq`; weather requests are mocked, so it does not need a network connection.
 
 ## Weather data
 
