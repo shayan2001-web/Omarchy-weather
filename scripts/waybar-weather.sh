@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-API_URL="https://api.open-meteo.com/v1/forecast"
+WEATHER_API="https://api.open-meteo.com/v1/forecast"
+AIR_QUALITY_API="https://air-quality-api.open-meteo.com/v1/air-quality"
 CONFIG_FILE="${OMARCHY_WEATHER_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/omarchy-weather/config.json}"
 
 emit_unavailable() {
@@ -61,32 +62,77 @@ case "$unit" in
     ;;
 esac
 
-weather_json="$(curl \
-  --fail \
-  --silent \
-  --show-error \
-  --max-time 10 \
-  --get \
+request_dir="$(mktemp -d "${TMPDIR:-/tmp}/omarchy-weather-waybar.XXXXXX")"
+trap 'rm -rf -- "$request_dir"' EXIT
+weather_file="$request_dir/weather.json"
+air_quality_file="$request_dir/air-quality.json"
+
+curl \
+  --fail --silent --show-error --max-time 10 --get \
   --data-urlencode "latitude=$latitude" \
   --data-urlencode "longitude=$longitude" \
   --data-urlencode 'current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,is_day' \
   --data-urlencode "temperature_unit=$api_temperature_unit" \
   --data-urlencode "wind_speed_unit=$api_wind_unit" \
   --data-urlencode 'timezone=auto' \
-  "$API_URL" 2>/dev/null)" || {
-  emit_unavailable 'Open-Meteo could not be reached. Check your internet connection.'
+  --output "$weather_file" \
+  "$WEATHER_API" 2>/dev/null &
+weather_pid=$!
+
+curl \
+  --fail --silent --show-error --max-time 10 --get \
+  --data-urlencode "latitude=$latitude" \
+  --data-urlencode "longitude=$longitude" \
+  --data-urlencode 'current=us_aqi,pm2_5,pm10,ozone,nitrogen_dioxide' \
+  --data-urlencode 'timezone=auto' \
+  --output "$air_quality_file" \
+  "$AIR_QUALITY_API" 2>/dev/null &
+air_quality_pid=$!
+
+weather_available=false
+if wait "$weather_pid" && jq -e '(.current | type == "object") and (.current.temperature_2m | type == "number")' "$weather_file" >/dev/null 2>&1; then
+  weather_available=true
+  weather_json="$(cat "$weather_file")"
+else
+  weather_json='{}'
+fi
+
+air_quality_available=false
+if wait "$air_quality_pid" && jq -e '(.current | type == "object") and (.current.us_aqi | type == "number")' "$air_quality_file" >/dev/null 2>&1; then
+  air_quality_available=true
+  air_quality_json="$(cat "$air_quality_file")"
+else
+  air_quality_json='{}'
+fi
+
+if [[ "$weather_available" == false && "$air_quality_available" == false ]]; then
+  emit_unavailable 'Weather and air-quality services are unavailable. Check your connection.'
   exit 0
-}
+fi
 
 if ! output="$(jq -cn \
   --arg location "$location" \
   --arg temperature_symbol "$temperature_symbol" \
   --arg wind_symbol "$wind_symbol" \
-  --argjson weather "$weather_json" '
+  --argjson weather_available "$weather_available" \
+  --argjson air_quality_available "$air_quality_available" \
+  --argjson weather "$weather_json" \
+  --argjson air_quality "$air_quality_json" '
     def display_number:
       if type == "number" then round | tostring else "—" end;
 
+    def air_level($value):
+      if $value <= 50 then {label:"Good", class:"good"}
+      elif $value <= 100 then {label:"Moderate", class:"moderate"}
+      elif $value <= 150 then {label:"Unhealthy for sensitive groups", class:"sensitive"}
+      elif $value <= 200 then {label:"Unhealthy", class:"unhealthy"}
+      elif $value <= 300 then {label:"Very unhealthy", class:"very-unhealthy"}
+      else {label:"Hazardous", class:"hazardous"} end;
+
     ($weather.current // {}) as $current
+    | ($air_quality.current // {}) as $air
+    | ($weather_available and ($current.temperature_2m | type == "number")) as $has_weather
+    | ($air_quality_available and ($air.us_aqi | type == "number")) as $has_air_quality
     | ($current.weather_code // -1) as $code
     | ($current.is_day // 1) as $day
     | (
@@ -103,20 +149,44 @@ if ! output="$(jq -cn \
         elif ([95,96,99] | index($code)) then {icon:"ϟ", label:"Thunderstorm", class:"storm"}
         else {icon:"·", label:"Mixed conditions", class:"cloudy"} end
       ) as $condition
-    | ($current.temperature_2m | display_number) as $temperature
-    | ($current.apparent_temperature | display_number) as $feels_like
-    | ($current.relative_humidity_2m | display_number) as $humidity
-    | ($current.wind_speed_10m | display_number) as $wind_speed
+    | (if $has_air_quality then ($air.us_aqi | round | tostring) else "" end) as $aqi
+    | (if $has_air_quality then air_level($air.us_aqi) else {label:"Unavailable", class:"unavailable"} end) as $air_level
+    | (if $has_weather then ($current.temperature_2m | display_number) else "—" end) as $temperature
+    | (if $has_weather then ($current.apparent_temperature | display_number) else "—" end) as $feels_like
+    | (if $has_weather then ($current.relative_humidity_2m | display_number) else "—" end) as $humidity
+    | (if $has_weather then ($current.wind_speed_10m | display_number) else "—" end) as $wind_speed
     | (["N","NE","E","SE","S","SW","W","NW"]
        | .[((($current.wind_direction_10m // 0) / 45 | round) % 8)]) as $wind_direction
+    | ($air.pm2_5 | display_number) as $pm25
+    | ($air.pm10 | display_number) as $pm10
+    | ($air.ozone | display_number) as $ozone
+    | ($air.nitrogen_dioxide | display_number) as $nitrogen_dioxide
+    | (if $has_weather then "\($condition.icon) \($temperature)°\($temperature_symbol)" else "" end) as $weather_text
+    | (if $has_weather and $has_air_quality then "\($weather_text) · AQI \($aqi)"
+       elif $has_weather then $weather_text
+       elif $has_air_quality then "AQI \($aqi)"
+       else "Weather --" end) as $text
+    | ([
+        if $has_weather then "\($location) · \($condition.label)" else "\($location) · Current weather unavailable" end,
+        (if $has_weather then "Feels like \($feels_like)°\($temperature_symbol)" else null end),
+        (if $has_weather then "Humidity \($humidity)% · Wind \($wind_direction) \($wind_speed) \($wind_symbol)" else null end),
+        (if $has_air_quality then "US AQI \($aqi) · \($air_level.label)" else "Air-quality data unavailable" end),
+        (if $has_air_quality then "PM2.5 \($pm25) · PM10 \($pm10) µg/m³" else null end),
+        (if $has_air_quality then "O₃ \($ozone) · NO₂ \($nitrogen_dioxide) µg/m³" else null end),
+        (if $has_weather then "Weather data: Open-Meteo" else null end),
+        (if $has_air_quality then "Air-quality data: Open-Meteo · CAMS" else null end)
+      ] | map(select(. != null)) | join("\n")) as $tooltip
     | {
-        text: "\($condition.icon) \($temperature)°\($temperature_symbol)",
-        tooltip: "\($location) · \($condition.label)\nFeels like \($feels_like)°\($temperature_symbol)\nHumidity \($humidity)% · Wind \($wind_direction) \($wind_speed) \($wind_symbol)\nData: Open-Meteo",
-        class: $condition.class,
-        alt: $condition.label
+        text: $text,
+        tooltip: $tooltip,
+        class: (if $has_weather then $condition.class else "unavailable" end),
+        alt: (if $has_weather and $has_air_quality then "\($condition.label), US AQI \($aqi), \($air_level.label)"
+              elif $has_weather then $condition.label
+              elif $has_air_quality then "US AQI \($aqi), \($air_level.label)"
+              else "Weather unavailable" end)
       }
   ' 2>/dev/null)"; then
-  emit_unavailable 'Open-Meteo returned an unreadable forecast.'
+  emit_unavailable 'Open-Meteo returned unreadable weather or air-quality data.'
   exit 0
 fi
 

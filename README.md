@@ -31,7 +31,7 @@ The launcher uses a Chromium-family browser's app-window mode when available, an
 
 ## Optional Waybar module
 
-The installer adds `~/.local/bin/omarchy-weather-waybar`. The module reads `~/.config/omarchy-weather/config.json`, fetches current conditions every 15 minutes when Waybar runs it, and opens the desktop app when clicked. It needs `curl` and `jq`; if either is missing, the module displays an explanatory unavailable state. Install them on Arch Linux if needed:
+The installer adds `~/.local/bin/omarchy-weather-waybar`. The module reads `~/.config/omarchy-weather/config.json`, requests current weather and air quality in parallel every 15 minutes, and opens the desktop app when clicked. It shows the AQI beside the weather when both feeds are available; if one service fails, it still displays the other. Hover for the AQI category and pollutant details. It needs `curl` and `jq`; if either is missing, the module displays an explanatory unavailable state. Install them on Arch Linux if needed:
 
 ```sh
 sudo pacman -S curl jq
