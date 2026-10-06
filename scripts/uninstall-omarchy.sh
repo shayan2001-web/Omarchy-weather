@@ -59,4 +59,5 @@ if command -v update-desktop-database >/dev/null 2>&1 && [[ -d "$APPLICATIONS_DI
 fi
 
 printf 'Removed the Omarchy Weather desktop launcher, Waybar command, installed app files, and local cache.\n'
-printf 'Your Waybar and location settings in %s were left in place.\n' "${XDG_CONFIG_HOME:-$HOME/.config}/omarchy-weather"
+printf 'Your location settings and copied snippets in %s were left in place.\n' "${XDG_CONFIG_HOME:-$HOME/.config}/omarchy-weather"
+printf 'Your active Waybar config/style were not reverted; remove the custom/weather entry manually if desired.\n'

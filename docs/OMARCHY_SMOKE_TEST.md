@@ -9,7 +9,7 @@ From the repository clone on the project branch:
 ```sh
 git pull origin arena/633b0c2a-omarchy-weather
 ./tests/run.sh
-./scripts/install-omarchy.sh
+./scripts/configure-waybar.sh
 ```
 
 The suite requires Bash, Node.js, Python 3, and `jq`. The app launcher requires Python 3; the Waybar command additionally requires `curl` and `jq`. On Arch Linux, install missing tools with:
@@ -18,13 +18,7 @@ The suite requires Bash, Node.js, Python 3, and `jq`. The app launcher requires 
 sudo pacman -S --needed python nodejs curl jq
 ```
 
-If this is an existing Waybar setup, follow the configuration merge instructions in the [README](../README.md#optional-waybar-module). The installer preserves existing Waybar snippets; to enable the amber stale-data tint on an older install, merge this rule into the stylesheet Waybar loads:
-
-```css
-#custom-weather.stale {
-  color: #e5b75b;
-}
-```
+`configure-waybar.sh` backs up and updates the default Waybar config and stylesheet. If your files use non-default paths, set `WAYBAR_CONFIG_FILE` and/or `WAYBAR_STYLE_FILE` before running it. If the script refuses an unusual JSONC config, use the manual merge instructions in the [README](../README.md#optional-waybar-module).
 
 ## 2. Check live data and cache creation
 

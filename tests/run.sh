@@ -114,7 +114,82 @@ run_with_test_home() {
     "$@"
 }
 
-run_with_test_home "$ROOT_DIR/scripts/install-omarchy.sh" >/dev/null
+WAYBAR_TEST_BIN="$TEMP_DIR/waybar-bin"
+WAYBAR_CONFIG="$CONFIG_HOME/waybar/config.jsonc"
+mkdir -p "$CONFIG_HOME/waybar" "$WAYBAR_TEST_BIN"
+cat > "$WAYBAR_CONFIG" <<'JSONC'
+{
+  // Keep existing Omarchy config and comments intact.
+  "modules-right": [
+    "network",
+    "clock"
+  ],
+  "clock": {"format": "%H:%M"},
+}
+JSONC
+STYLE_TARGET="$CONFIG_HOME/waybar/theme-style.css"
+printf '#clock { color: white; }\n' > "$STYLE_TARGET"
+ln -s "$(basename "$STYLE_TARGET")" "$CONFIG_HOME/waybar/style.css"
+cat > "$WAYBAR_TEST_BIN/curl" <<'MOCK'
+#!/usr/bin/env sh
+exit 0
+MOCK
+chmod 755 "$WAYBAR_TEST_BIN/curl"
+
+run_configure_waybar() {
+  local config_file="${1:-$WAYBAR_CONFIG}"
+  run_with_test_home env \
+    PATH="$WAYBAR_TEST_BIN:$PATH" \
+    WAYBAR_CONFIG_FILE="$config_file" \
+    OMARCHY_WEATHER_NO_WAYBAR_RESTART=1 \
+      "$ROOT_DIR/scripts/configure-waybar.sh" >/dev/null
+}
+
+run_configure_waybar
+[[ "$(grep -o '"custom/weather"' "$WAYBAR_CONFIG" | wc -l)" -eq 2 ]]
+grep -q 'Keep existing Omarchy config and comments intact.' "$WAYBAR_CONFIG"
+python3 - "$WAYBAR_CONFIG" <<'PY'
+import json
+import re
+import sys
+from pathlib import Path
+
+source = Path(sys.argv[1]).read_text(encoding="utf-8")
+without_comments = re.sub(r"//.*?$", "", source, flags=re.M)
+config = json.loads(without_comments)
+assert config["modules-right"].count("custom/weather") == 1
+assert Path(config["custom/weather"]["exec"]).name == "omarchy-weather-waybar"
+assert Path(config["custom/weather"]["on-click"]).name == "omarchy-weather"
+PY
+grep -q '#custom-weather.stale' "$CONFIG_HOME/waybar/style.css"
+grep -q '#clock { color: white; }' "$STYLE_TARGET"
+[[ -L "$CONFIG_HOME/waybar/style.css" ]]
+CONFIG_BACKUP="$(find "$CONFIG_HOME/waybar" -maxdepth 1 -name 'config.jsonc.backup.*' -print -quit)"
+STYLE_BACKUP="$(find "$CONFIG_HOME/waybar" -maxdepth 1 -name 'style.css.backup.*' -print -quit)"
+[[ -n "$CONFIG_BACKUP" && -n "$STYLE_BACKUP" ]]
+grep -q 'Keep existing Omarchy config and comments intact.' "$CONFIG_BACKUP"
+! grep -q 'custom/weather' "$CONFIG_BACKUP"
+! grep -q '#custom-weather' "$STYLE_BACKUP"
+[[ "$(find "$CONFIG_HOME/waybar" -maxdepth 1 -name 'config.jsonc.backup.*' | wc -l)" -eq 1 ]]
+[[ "$(find "$CONFIG_HOME/waybar" -maxdepth 1 -name 'style.css.backup.*' | wc -l)" -eq 1 ]]
+run_configure_waybar
+[[ "$(grep -o '"custom/weather"' "$WAYBAR_CONFIG" | wc -l)" -eq 2 ]]
+[[ "$(find "$CONFIG_HOME/waybar" -maxdepth 1 -name 'config.jsonc.backup.*' | wc -l)" -eq 1 ]]
+[[ "$(find "$CONFIG_HOME/waybar" -maxdepth 1 -name 'style.css.backup.*' | wc -l)" -eq 1 ]]
+
+MINIMAL_CONFIG="$CONFIG_HOME/waybar/minimal.jsonc"
+printf '{"layer":"top"}\n' > "$MINIMAL_CONFIG"
+run_configure_waybar "$MINIMAL_CONFIG"
+python3 - "$MINIMAL_CONFIG" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+config = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert config["modules-right"] == ["custom/weather"]
+assert config["custom/weather"]["return-type"] == "json"
+PY
+
 APP_DIR="$DATA_HOME/omarchy-weather"
 BIN_DIR="$TEST_HOME/.local/bin"
 CONFIG_DIR="$CONFIG_HOME/omarchy-weather"
@@ -181,6 +256,9 @@ run_with_test_home "$ROOT_DIR/scripts/uninstall-omarchy.sh" >/dev/null
 [[ ! -e "$DATA_HOME/icons/hicolor/512x512/apps/omarchy-weather.png" ]]
 [[ -f "$CONFIG_DIR/config.json" ]]
 [[ -f "$CONFIG_DIR/waybar-weather.css" ]]
+[[ -f "$WAYBAR_CONFIG" ]]
+grep -q '"custom/weather"' "$WAYBAR_CONFIG"
+grep -q '#custom-weather.stale' "$STYLE_TARGET"
 [[ ! -e "$CACHE_HOME/omarchy-weather" ]]
 [[ -d "$CACHE_HOME" ]]
 [[ ! -e "$RUNTIME_HOME/omarchy-weather-server.pid" ]]

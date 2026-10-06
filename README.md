@@ -34,12 +34,20 @@ The launcher uses a Chromium-family browser's app-window mode when available, an
 The installer adds `~/.local/bin/omarchy-weather-waybar`. The module reads `~/.config/omarchy-weather/config.json`, requests current weather and air quality in parallel every 15 minutes, and opens the desktop app when clicked. It saves each successful feed under `~/.cache/omarchy-weather/` for offline fallback, keyed by location and unit. If a service fails, it keeps showing that feed's last saved value, prefixes the text with `~`, and marks cached data and its timestamp in the tooltip. The stylesheet gives stale readings an amber tint. Hover also shows the AQI category and pollutant details. It needs `curl` and `jq`; if either is missing, the module displays an explanatory unavailable state. Install them on Arch Linux if needed:
 
 ```sh
-sudo pacman -S curl jq
+sudo pacman -S --needed curl jq
 ```
+
+To install the app and safely merge the Waybar module and styles into the default Omarchy config, run this from the repository:
+
+```sh
+./scripts/configure-waybar.sh
+```
+
+It backs up existing Waybar config/style files before editing and restarts Waybar when `omarchy-restart-waybar` is available. For non-default paths, set `WAYBAR_CONFIG_FILE` and/or `WAYBAR_STYLE_FILE` before running it.
 
 Edit the location and unit in `~/.config/omarchy-weather/config.json` (`unit` can be `c` or `f`). The Waybar module uses this file independently of the city and unit selected inside the browser app.
 
-Merge `~/.config/omarchy-weather/waybar-weather-module.jsonc` into your existing Waybar config, and add `"custom/weather"` to its `modules-right` array. Append `~/.config/omarchy-weather/waybar-weather.css` to your Waybar stylesheet, then restart Waybar. If Waybar cannot find commands in `~/.local/bin`, use their full paths in the module configuration. On existing installs, the installer preserves these snippets; merge new styles from this repository's `config/waybar-weather.css` when updating.
+If automatic setup refuses an unusual config (for example, comments inside `modules-right`), back up the file and manually merge `~/.config/omarchy-weather/waybar-weather-module.jsonc` into its top-level object and add `"custom/weather"` to `modules-right`. Append `~/.config/omarchy-weather/waybar-weather.css` to the stylesheet Waybar loads. Existing installs keep local snippets; merge updated styles from `config/waybar-weather.css` when needed. The automatic setup writes full paths for the app commands; use full paths in a manually merged module too if Waybar cannot find commands in `~/.local/bin`.
 
 ## Uninstall
 
@@ -47,7 +55,7 @@ Merge `~/.config/omarchy-weather/waybar-weather-module.jsonc` into your existing
 ./scripts/uninstall-omarchy.sh
 ```
 
-The uninstall script removes the user-level app, menu entry, icons, Waybar command, and local Waybar response cache. It deliberately leaves `~/.config/omarchy-weather/`—including your location settings and copied Waybar snippets—in place.
+The uninstall script removes the user-level app, menu entry, icons, Waybar command, and local Waybar response cache. It leaves `~/.config/omarchy-weather/` and your active Waybar config/style in place so it does not overwrite or revert customizations. If you no longer want the module, remove its `"custom/weather"` entry from `modules-right` and the top-level module object, plus its CSS rule.
 
 ## Run locally for development
 
