@@ -1,0 +1,4 @@
+# Build outputs and local tooling
+node_modules/
+dist/
+.DS_Store
